@@ -26,7 +26,7 @@ export class LingbaoM9 {
     async writeProfile(index, profile) {
         if (profile.bytes.length !== this.definition.profileSize)
             throw new Error("Profile size mismatch");
-        const reply = await this.transport.writeBlock(COMMAND.writeProfile, profile.bytes, index, this.definition.profileSize);
+        const reply = await this.transport.transaction(() => this.transport.writeBlock(COMMAND.writeProfile, profile.bytes, index, this.definition.profileSize));
         return new M9Profile(reply.length >= this.definition.profileSize ? reply.slice(0, this.definition.profileSize) : profile.bytes.slice(), this.definition);
     }
     async mutateProfile(index, fn) {
@@ -53,7 +53,7 @@ export class LingbaoM9 {
     async writeKeyMatrix(matrix) {
         if (matrix.length !== this.definition.matrixSize)
             throw new Error("Key matrix size mismatch");
-        return this.transport.writeBlock(COMMAND.writeKeyMatrix, matrix, 0, this.definition.matrixSize);
+        return this.transport.transaction(() => this.transport.writeBlock(COMMAND.writeKeyMatrix, matrix, 0, this.definition.matrixSize));
     }
     async uploadMacro() {
         throw new Error("Macro writes are disabled: command 0x15 global-memory rebuild is not yet hardware-safe");
