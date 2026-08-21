@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101113" />
+  <title>M9 Hardware Validator</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="content" style="max-width:1100px;margin:0 auto">
+    <div class="content-heading"><div><div class="eyebrow">Developer tool</div><h1>M9 hardware validator</h1><p>Validate command 0x09 matrix writes and command 0x15 macro binding against a real mouse.</p></div><a class="button secondary" href="./">Back to configurator</a></div>
+
+    <div class="grid two">
+      <article class="card span-2">
+        <div class="card-head"><div><h2>Connect</h2><p id="device">No device connected.</p></div><span id="connected" class="status offline">Offline</span></div>
+        <div class="save-actions">
+          <select id="variant" class="control-select" style="max-width:220px"><option value="pro-max">M9 Pro Max</option><option value="ultra">M9 Ultra</option></select>
+          <button id="connect" class="button primary">Connect mouse</button>
+        </div>
+        <div id="status" class="inline-note">Connect the mouse to begin.</div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><div><h2>1. Matrix no-op validation</h2><p>Reads the live 33-byte matrix, writes those exact same bytes with command 0x09, then rereads with 0x08.</p></div></div>
+        <button id="validate" class="button secondary">Validate 0x09 → 0x08</button>
+        <div class="inline-note">This deliberately changes no assignment bytes. A pass requires all 33 bytes to match exactly.</div>
+      </article>
+
+      <article class="card">
+        <div class="card-head"><div><h2>2. Macro upload + binding</h2><p>Uploads one A-key macro as zero-based macro index 0 and temporarily binds the physical Back button to <code>70 00 01</code>.</p></div></div>
+        <label class="danger-check"><input id="replaceMacros" type="checkbox" /> I understand command 0x15 rebuilds global macro memory and may replace macros created by Lingbao's original configurator.</label>
+        <div class="save-actions" style="margin-top:14px"><button id="macro" class="button secondary">Upload & bind test macro</button><button id="restore" class="button secondary" disabled>Restore Back mapping</button></div>
+        <label class="macro-capture-label" style="margin-top:14px">Behavior test field<input id="capture" class="text-input" placeholder="After arming: press physical Back; expected output: a" /></label>
+      </article>
+
+      <article class="card span-2">
+        <div class="card-head"><div><h2>Live matrix</h2><p>Command 0x08 snapshot.</p></div></div>
+        <pre id="matrix" class="hex-view">Not read yet.</pre>
+      </article>
+
+      <article class="card span-2">
+        <div class="card-head"><div><h2>Validation log</h2><p>Protocol acknowledgements and read-back checks.</p></div></div>
+        <pre id="log" class="log-view"></pre>
+      </article>
+    </div>
+  </main>
+</body>
+</html>
