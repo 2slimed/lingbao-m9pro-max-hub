@@ -53,7 +53,7 @@ export class LingbaoM9 {
     async writeKeyMatrix(matrix) {
         if (matrix.length !== this.definition.matrixSize)
             throw new Error("Key matrix size mismatch");
-        return this.transport.transaction(() => this.transport.writeBlock(COMMAND.writeKeyMatrix, matrix, 0, this.definition.matrixSize));
+        return this.transport.writeMatrix(matrix, 0, this.definition.matrixSize);
     }
     async uploadMacro() {
         throw new Error("Macro writes are disabled: command 0x15 global-memory rebuild is not yet hardware-safe");
