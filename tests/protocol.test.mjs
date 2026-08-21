@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildMacroBlob, encodeMacroEvent, macroBinding, MACRO_COMMAND_LENGTH } from '../driver/macro.js';
+import { buildMacroBlob, buildMacroImage, encodeMacroEvent, macroBinding, MACRO_COMMAND_LENGTH } from '../driver/macro.js';
 
 const hex = bytes => [...bytes].map(x => x.toString(16).padStart(2,'0')).join(' ');
 const numericCmd = cmd => cmd.map(v => typeof v === 'string' ? parseInt(v,16) : v);
@@ -30,9 +30,6 @@ const builtAuto = buildMacroBlob([bhop],autoclick.data);
 assert.deepEqual([...builtAuto],numericCmd(autoclick.cmd));
 assert.equal(hex(builtAuto),'00 00 15 12 00 00 00 aa 55 34 00 02 00 00 00 00 00 00 00 00 00 00 00 14 00 20 00 02 00 00 00 14 00 8a 2c 01 00 0a 2c 02 00 00 00 14 00 81 01 00 00 01 01');
 
-// Captured 2026-08-21 from the official configurator after appending macro 2,
-// "test" (A down/up). This is the exact DB image that produced the matching
-// working HID trace. It proves pointer growth and prior-record preservation.
 const testMacro = {
   data:[
     {key:'a',action:'down',duration:20,unicode:65},
@@ -44,5 +41,10 @@ const builtTest = buildMacroBlob([bhop,autoclick],testMacro.data);
 assert.deepEqual([...builtTest],numericCmd(testMacro.cmd));
 assert.equal(builtTest.macroIndex,2);
 assert.deepEqual(macroBinding(2,{mode:0}),[0x70,0x02,0x00]);
+
+// The editable-library path must reproduce the same three-macro global image
+// without relying on any stored Lingbao `cmd` snapshots.
+const rebuiltLibrary = buildMacroImage([bhop,autoclick,testMacro]);
+assert.deepEqual([...rebuiltLibrary],numericCmd(testMacro.cmd));
 
 console.log('protocol tests passed');
