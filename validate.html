@@ -9,7 +9,7 @@
 </head>
 <body>
   <main class="content" style="max-width:1100px;margin:0 auto">
-    <div class="content-heading"><div><div class="eyebrow">Developer tool</div><h1>M9 hardware validator</h1><p>Validate matrix writes, corrected command-0x15 macro replay, and macro-to-button binding in separate stages.</p></div><a class="button secondary" href="./">Back to configurator</a></div>
+    <div class="content-heading"><div><div class="eyebrow">Developer tool</div><h1>M9 hardware validator</h1><p>Validate the captured matrix and macro protocols against a real mouse.</p></div><a class="button secondary" href="./">Back to configurator</a></div>
 
     <div class="grid two">
       <article class="card span-2">
@@ -22,26 +22,25 @@
       </article>
 
       <article class="card">
-        <div class="card-head"><div><h2>1. Matrix no-op validation</h2><p>Reads the live 33-byte matrix, writes those exact same bytes with command 0x09, then rereads with 0x08.</p></div></div>
-        <button id="validate" class="button secondary">Validate 0x09 → 0x08</button>
-        <div class="inline-note">This deliberately changes no assignment bytes. A pass requires all 33 bytes to match exactly.</div>
+        <div class="card-head"><div><h2>1. Matrix no-op validation</h2><p>Uses the now hardware-validated official 24 + 9 byte matrix write framing.</p></div></div>
+        <button id="validate" class="button secondary">Validate matrix write</button>
+        <div class="inline-note">The exact live 33-byte matrix is written back and then reread.</div>
       </article>
 
       <article class="card">
-        <div class="card-head"><div><h2>2. Known-good macro memory replay</h2><p>Replays the exact 51-byte global macro image exported from Lingbao's own IndexedDB: <strong>bhop</strong> + <strong>autoclick</strong>. This uses the corrected <code>00 00 15 12</code> header.</p></div></div>
-        <label class="danger-check"><input id="macroAck" type="checkbox" /> I understand this rewrites global macro memory to the exact two-macro image from my Lingbao DB export.</label>
-        <button id="replayMacros" class="button secondary" style="margin-top:14px">Replay known-good macro image</button>
-        <div class="inline-note">The validator snapshots the live matrix first. A pass requires all 33 matrix bytes to remain unchanged. If they differ, it attempts immediate restoration and stops.</div>
+        <div class="card-head"><div><h2>2. Macro append + bind</h2><p>Starting from the exact three-macro image captured from Lingbao, append a temporary fourth macro that types <strong>B</strong>, then bind physical Back to macro index 3.</p></div></div>
+        <label class="danger-check"><input id="macroAck" type="checkbox" /> I understand this temporarily rewrites global macro memory and the Back mapping.</label>
+        <button id="runMacroTest" class="button secondary" style="margin-top:14px">Append B macro & bind Back</button>
+        <div class="inline-note">The validator snapshots your live 33-byte matrix first. The temporary macro is encoded by our compiler, not copied from Lingbao.</div>
       </article>
 
       <article class="card span-2">
-        <div class="card-head"><div><h2>3. Existing macro binding test</h2><p>Only enabled after stage 2 passes. Temporarily binds physical Back to existing macro index 0 (<strong>bhop</strong>) with Lingbao's saved playback mode 3: <code>70 00 03</code>.</p></div></div>
-        <div class="save-actions">
-          <button id="bindExisting" class="button secondary" disabled>Bind Back → bhop</button>
-          <button id="restoreBinding" class="button secondary" disabled>Restore original Back mapping</button>
+        <div class="card-head"><div><h2>3. Behavioral validation + cleanup</h2><p>After stage 2 succeeds, focus the field and press physical Back. Expected output: <strong>b</strong>.</p></div></div>
+        <label class="macro-capture-label">Behavior test field<input id="capture" class="text-input" placeholder="Press physical Back; expected: b" /></label>
+        <div class="save-actions" style="margin-top:14px">
+          <button id="cleanupMacroTest" class="button secondary" disabled>Restore matrix & three-macro image</button>
         </div>
-        <label class="macro-capture-label" style="margin-top:14px">Behavior test field<input id="capture" class="text-input" placeholder="After arming: press physical Back; expected output: one Space" /></label>
-        <div class="inline-note">This stage does not modify macro memory again; it only changes the Back button's 3-byte descriptor via command 0x09 and verifies it through 0x08.</div>
+        <div class="inline-note">Cleanup first restores the exact pre-test matrix so no button references macro 3, then restores the exact three-macro image from your official DB capture.</div>
       </article>
 
       <article class="card span-2">
@@ -50,7 +49,7 @@
       </article>
 
       <article class="card span-2">
-        <div class="card-head"><div><h2>Validation log</h2><p>Protocol acknowledgements and read-back checks.</p></div></div>
+        <div class="card-head"><div><h2>Validation log</h2><p>Protocol operations and read-back checks.</p></div></div>
         <pre id="log" class="log-view"></pre>
       </article>
     </div>
