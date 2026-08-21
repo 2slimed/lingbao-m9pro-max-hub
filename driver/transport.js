@@ -68,6 +68,11 @@ export class M9Transport {
     return this.sendPacket(Uint8Array.of(0x00, 0x00, command, 0x18, 0x00, 0x00, 0x00));
   }
 
+  // Observed immediately before a working official button-matrix write.
+  async prepareWrite() {
+    return this.sendPacket(Uint8Array.of(0x00, 0x00, 0x1a, 0x06, 0x00, 0x00, 0x00));
+  }
+
   async transaction(operation) {
     if (this.transactionDepth > 0) return operation();
     this.transactionDepth++;
@@ -97,11 +102,11 @@ export class M9Transport {
     return Uint8Array.from(out).subarray(0, length);
   }
 
-  async writeBlock(command, data, baseIndex = 0, stride = 0) {
-    const responses = [], chunks = Math.ceil(data.length / this.layout.payloadLength);
+  async writeBlock(command, data, baseIndex = 0, stride = 0, chunkSize = this.layout.payloadLength) {
+    const responses = [], chunks = Math.ceil(data.length / chunkSize);
     for (let i = 0; i < chunks; i++) {
-      const start = i * this.layout.payloadLength;
-      const chunk = data.subarray(start, start + this.layout.payloadLength);
+      const start = i * chunkSize;
+      const chunk = data.subarray(start, start + chunkSize);
       const address = start + stride * baseIndex;
       const [lo, hi] = u16le(address);
       const header = Uint8Array.of(0, 0, command, chunk.length, lo, hi, 0);
@@ -113,6 +118,14 @@ export class M9Transport {
       for (let j = 0; j < take; j++) responses.push(response[7 + j]);
     }
     return Uint8Array.from(responses);
+  }
+
+  // Official M9 matrix writes use a fixed 24-byte payload window even though
+  // the HID output report itself is 63 bytes. A 33-byte matrix is therefore
+  // sent as 0x09/0x18 @ 0x0000 followed by 0x09/0x09 @ 0x0018.
+  async writeMatrix(data, baseIndex = 0, stride = 0) {
+    await this.prepareWrite();
+    return this.transaction(() => this.writeBlock(0x09, data, baseIndex, stride, 24));
   }
 
   async sendMacroBlob(blob) {
