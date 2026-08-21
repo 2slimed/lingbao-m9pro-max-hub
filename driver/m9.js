@@ -1,7 +1,7 @@
 import { COMMAND, PROFILE } from "./constants.js";
 import { M9Profile } from "./profile.js";
 import { M9Transport } from "./transport.js";
-import { macroBinding } from "./macro.js";
+import { buildMacroBlob, macroBinding } from "./macro.js";
 export class LingbaoM9 {
     transport;
     definition;
@@ -55,8 +55,18 @@ export class LingbaoM9 {
             throw new Error("Key matrix size mismatch");
         return this.transport.writeMatrix(matrix, 0, this.definition.matrixSize);
     }
-    async uploadMacro() {
-        throw new Error("Macro writes are disabled: command 0x15 global-memory rebuild is not yet hardware-safe");
+    async writeMacroImage(blob) {
+        if (!(blob instanceof Uint8Array)) blob = Uint8Array.from(blob);
+        // Captured official macro creation: 0x01 -> 0x15 windows -> 0x02.
+        // Unlike ordinary matrix edits there is no observed 0x1A prepare command.
+        await this.transport.transaction(() => this.transport.sendMacroBlob(blob));
+        return blob;
+    }
+    async uploadMacro(existing, events) {
+        const blob = buildMacroBlob(existing, events);
+        const index = blob.macroIndex;
+        await this.writeMacroImage(blob);
+        return { index, blob };
     }
     macroBinding(index, playback) {
         return Uint8Array.from(macroBinding(index, playback));
