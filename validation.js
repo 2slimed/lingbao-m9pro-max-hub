@@ -45,7 +45,8 @@ async function connect() {
     $('#connected').textContent = 'Connected';
     $('#connected').className = 'status online';
     log('Connected and read live matrix through command 0x08');
-    status('Ready. Run matrix validation, then the known-good macro replay.');
+    log('Validator now uses Lingbao transaction handshake: 0x01 → write → 0x02');
+    status('Ready. Close the official Lingbao configurator, then run matrix validation and the known-good macro replay.');
   } catch (error) { log(`Connect error: ${error.message}`); status(error.message,'validation-fail'); }
 }
 
@@ -53,13 +54,13 @@ async function validateMatrix() {
   try {
     requireMouse();
     const before = Uint8Array.from(await state.mouse.readKeyMatrix(0));
-    log('Writing the exact same 33-byte matrix through command 0x09…');
+    log('Writing the exact same 33-byte matrix inside 0x01 → 0x09 → 0x02 transaction…');
     await state.mouse.writeKeyMatrix(before);
     const after = await state.mouse.readKeyMatrix(0);
     renderMatrix(after);
     if (!same(before, after)) throw new Error('0x09 → 0x08 read-back differed');
-    log('PASS: all 33 matrix bytes matched after write/read-back');
-    status('PASS — button matrix write path is validated on this device.','validation-pass');
+    log('PASS: all 33 matrix bytes matched after committed write/read-back');
+    status('PASS — committed button matrix write path is validated on this device.','validation-pass');
   } catch (error) { log(`Matrix validation error: ${error.message}`); status(`FAIL — ${error.message}`,'validation-fail'); }
 }
 
@@ -70,12 +71,12 @@ async function replayKnownGoodMacros() {
     if (!$('#macroAck').checked) throw new Error('Confirm the known-good macro replay warning first');
     before = Uint8Array.from(await state.mouse.readKeyMatrix(0));
     log(`Snapshot matrix before macro replay: ${hex(before).replaceAll('\n',' ')}`);
-    log(`Sending exact ${KNOWN_GOOD_MACRO_IMAGE.length}-byte Lingbao DB macro image (00 00 15 12 …), containing bhop + autoclick…`);
-    await state.mouse.transport.sendMacroBlob(KNOWN_GOOD_MACRO_IMAGE);
+    log(`Sending exact ${KNOWN_GOOD_MACRO_IMAGE.length}-byte Lingbao DB macro image inside 0x01 → 0x15 → 0x02 transaction…`);
+    await state.mouse.transport.transaction(() => state.mouse.transport.sendMacroBlob(KNOWN_GOOD_MACRO_IMAGE));
     const after = await state.mouse.readKeyMatrix(0);
     renderMatrix(after);
     if (!same(before, after)) {
-      log('FAIL: matrix changed after known-good 0x15 replay. Attempting immediate matrix restoration…');
+      log('FAIL: matrix changed after committed known-good 0x15 replay. Attempting immediate matrix restoration…');
       await state.mouse.writeKeyMatrix(before);
       const restored = await state.mouse.readKeyMatrix(0);
       renderMatrix(restored);
@@ -84,8 +85,8 @@ async function replayKnownGoodMacros() {
     }
     state.macroReplayPassed = true;
     $('#bindExisting').disabled = false;
-    log('PASS: command 0x15 replay acknowledged; all 33 matrix bytes remained unchanged');
-    status('PASS — corrected 0x15/0x12 macro-memory replay did not disturb the live button matrix. You may now test an existing macro binding.','validation-pass');
+    log('PASS: committed command 0x15 replay completed; all 33 matrix bytes remained unchanged');
+    status('PASS — macro image was committed without disturbing the live button matrix. You may now test macro index 0 binding.','validation-pass');
   } catch (error) {
     state.macroReplayPassed = false;
     $('#bindExisting').disabled = true;
@@ -101,16 +102,16 @@ async function bindExistingBhop() {
     state.preBindingMatrix = Uint8Array.from(await state.mouse.readKeyMatrix(0));
     const binding = Uint8Array.of(0x70,0x00,0x03); // macro index 0, Lingbao playbackMode 3
     const next = setButtonDescriptor(state.preBindingMatrix,'backward',binding);
-    log('Temporarily binding physical Back to existing bhop macro as 70 00 03…');
+    log('Temporarily binding physical Back (matrix bytes 09–0B) to bhop as 70 00 03…');
     await state.mouse.writeKeyMatrix(next);
     const verify = await state.mouse.readKeyMatrix(0);
     renderMatrix(verify);
-    if (!same(next, verify)) throw new Error('70 00 03 binding did not survive 0x09 → 0x08 read-back');
+    if (!same(next, verify)) throw new Error('70 00 03 binding did not survive committed 0x09 → 0x08 read-back');
     $('#restoreBinding').disabled = false;
     $('#capture').value = '';
     $('#capture').focus();
-    log('PASS: 70 00 03 is present in the live matrix. Behavior test armed.');
-    status('ARMED — press the physical Back button while the test field is focused. The existing bhop macro should type one Space character.','validation-pass');
+    log('PASS: 70 00 03 is present in the committed live matrix. Behavior test armed.');
+    status('ARMED — with the official configurator closed, press physical Back while the field is focused. bhop should emit Space.','validation-pass');
   } catch (error) {
     log(`Binding test error: ${error.message}`);
     status(`FAIL — ${error.message}`,'validation-fail');
@@ -121,14 +122,14 @@ async function restoreBinding() {
   try {
     requireMouse();
     if (!state.preBindingMatrix) throw new Error('No pre-binding matrix snapshot exists');
-    log('Restoring exact pre-binding 33-byte matrix…');
+    log('Restoring exact pre-binding 33-byte matrix inside committed transaction…');
     await state.mouse.writeKeyMatrix(state.preBindingMatrix);
     const verify = await state.mouse.readKeyMatrix(0);
     renderMatrix(verify);
     if (!same(state.preBindingMatrix, verify)) throw new Error('Pre-binding matrix did not restore byte-for-byte');
     state.preBindingMatrix = null;
     $('#restoreBinding').disabled = true;
-    log('PASS: original button mapping restored byte-for-byte');
+    log('PASS: original button mapping restored and committed byte-for-byte');
     status('Original button mapping restored.','validation-pass');
   } catch (error) {
     log(`Restore error: ${error.message}`);
@@ -139,7 +140,7 @@ async function restoreBinding() {
 $('#capture').addEventListener('input', () => {
   if ($('#capture').value.includes(' ')) {
     log('PASS: physical Back executed macro index 0 and produced Space');
-    status('PASS — existing macro index 0 + 70 00 03 binding are behaviorally validated. Restore the Back mapping now.','validation-pass');
+    status('PASS — committed macro memory + 70 00 03 binding are behaviorally validated. Restore the Back mapping now.','validation-pass');
   }
 });
 
