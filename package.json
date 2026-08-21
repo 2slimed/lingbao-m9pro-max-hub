@@ -1,9 +1,11 @@
 {
   "name": "lingbao-m9pro-max-hub",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
+  "type": "module",
   "description": "Unofficial WebHID configurator for the Lingbao M9 Pro Max / Ultra",
   "scripts": {
+    "test": "node tests/protocol.test.mjs",
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "watch": "webpack --mode development --watch"
