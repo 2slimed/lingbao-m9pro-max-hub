@@ -3,6 +3,10 @@ import { CONFIG_REPORT_ID, M9_IDENTITY } from './constants.js';
 export const LARGE_LAYOUT = { reportLength: 63, payloadLength: 56, commandLength: 0x26 };
 export const SMALL_LAYOUT = { reportLength: 31, payloadLength: 24, commandLength: 0x12 };
 
+// The M9 uses a 24-byte logical flash/write window for matrix and macro memory
+// even when the HID interface itself exposes a 63-byte output report.
+export const MEMORY_WRITE_CHUNK = 24;
+
 const u16le = n => [n & 0xff, (n >>> 8) & 0xff];
 
 export class M9Transport {
@@ -68,7 +72,7 @@ export class M9Transport {
     return this.sendPacket(Uint8Array.of(0x00, 0x00, command, 0x18, 0x00, 0x00, 0x00));
   }
 
-  // Observed immediately before a working official button-matrix write.
+  // Observed immediately before a working official ordinary matrix write.
   async prepareWrite() {
     return this.sendPacket(Uint8Array.of(0x00, 0x00, 0x1a, 0x06, 0x00, 0x00, 0x00));
   }
@@ -120,28 +124,28 @@ export class M9Transport {
     return Uint8Array.from(responses);
   }
 
-  // Official M9 matrix writes use a fixed 24-byte payload window even though
-  // the HID output report itself is 63 bytes. A 33-byte matrix is therefore
-  // sent as 0x09/0x18 @ 0x0000 followed by 0x09/0x09 @ 0x0018.
+  // Captured from the official configurator: 33-byte matrices are always
+  // 0x09/0x18 @ 0x0000 followed by 0x09/0x09 @ 0x0018.
   async writeMatrix(data, baseIndex = 0, stride = 0) {
     await this.prepareWrite();
-    return this.transaction(() => this.writeBlock(0x09, data, baseIndex, stride, 24));
+    return this.transaction(() => this.writeBlock(0x09, data, baseIndex, stride, MEMORY_WRITE_CHUNK));
   }
 
+  // `blob` is Lingbao's IndexedDB representation. Its first seven bytes are a
+  // template header and are NOT sent verbatim. The device receives blob[7:]
+  // in fixed 24-byte windows, each with a freshly generated command header:
+  //   00 00 15 18 <address LE16> 00 <24 payload bytes>
+  // The final window still advertises 0x18 and is zero-padded by sendPacket.
   async sendMacroBlob(blob) {
-    if (blob.length < 7 || blob[2] !== 0x15) throw new Error('Invalid Lingbao macro blob');
-    let pos = Math.min(blob.length, this.layout.reportLength);
-    await this.sendPacket(blob.subarray(0, pos));
-    let continuation = 1;
-    while (pos < blob.length) {
-      const chunk = blob.subarray(pos, pos + this.layout.payloadLength);
-      const [lo, hi] = u16le(continuation * this.layout.payloadLength);
-      const packet = new Uint8Array(7 + chunk.length);
-      packet.set([0, 0, 0x15, this.layout.commandLength, lo, hi, 0]);
+    if (blob.length < 8 || blob[2] !== 0x15) throw new Error('Invalid Lingbao macro blob');
+    const memory = blob.subarray(7);
+    for (let address = 0; address < memory.length; address += MEMORY_WRITE_CHUNK) {
+      const chunk = memory.subarray(address, address + MEMORY_WRITE_CHUNK);
+      const [lo, hi] = u16le(address);
+      const packet = new Uint8Array(7 + MEMORY_WRITE_CHUNK);
+      packet.set([0, 0, 0x15, MEMORY_WRITE_CHUNK, lo, hi, 0]);
       packet.set(chunk, 7);
       await this.sendPacket(packet);
-      pos += chunk.length;
-      continuation++;
     }
   }
 }
