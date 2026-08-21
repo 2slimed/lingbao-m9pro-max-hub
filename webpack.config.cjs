@@ -3,10 +3,13 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-  entry: './app.js',
+  entry: {
+    app: './app.js',
+    validation: './validation.js',
+  },
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'assets/app.[contenthash:8].js',
+    filename: 'assets/[name].[contenthash:8].js',
     clean: true,
     publicPath: './',
   },
@@ -14,6 +17,15 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './index.html',
       filename: 'index.html',
+      chunks: ['app'],
+      inject: 'body',
+      scriptLoading: 'defer',
+      minify: false,
+    }),
+    new HtmlWebpackPlugin({
+      template: './validate.html',
+      filename: 'validate.html',
+      chunks: ['validation'],
       inject: 'body',
       scriptLoading: 'defer',
       minify: false,
