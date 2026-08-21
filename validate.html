@@ -9,7 +9,7 @@
 </head>
 <body>
   <main class="content" style="max-width:1100px;margin:0 auto">
-    <div class="content-heading"><div><div class="eyebrow">Developer tool</div><h1>M9 hardware validator</h1><p>Validate command 0x09 matrix writes against a real mouse.</p></div><a class="button secondary" href="./">Back to configurator</a></div>
+    <div class="content-heading"><div><div class="eyebrow">Developer tool</div><h1>M9 hardware validator</h1><p>Validate matrix writes, corrected command-0x15 macro replay, and macro-to-button binding in separate stages.</p></div><a class="button secondary" href="./">Back to configurator</a></div>
 
     <div class="grid two">
       <article class="card span-2">
@@ -22,15 +22,26 @@
       </article>
 
       <article class="card">
-        <div class="card-head"><div><h2>Matrix no-op validation</h2><p>Reads the live 33-byte matrix, writes those exact same bytes with command 0x09, then rereads with 0x08.</p></div></div>
+        <div class="card-head"><div><h2>1. Matrix no-op validation</h2><p>Reads the live 33-byte matrix, writes those exact same bytes with command 0x09, then rereads with 0x08.</p></div></div>
         <button id="validate" class="button secondary">Validate 0x09 → 0x08</button>
         <div class="inline-note">This deliberately changes no assignment bytes. A pass requires all 33 bytes to match exactly.</div>
       </article>
 
       <article class="card">
-        <div class="card-head"><div><h2>Macro validation paused</h2><p>The previous command-0x15 test was able to disturb unrelated button bindings. Macro writes are disabled until the complete global macro-memory rebuild format is recovered.</p></div></div>
-        <button class="button secondary" disabled>Macro hardware test disabled</button>
-        <div class="inline-note">Do not use older cached copies of the macro test. Reload this page after deployment before doing further hardware validation.</div>
+        <div class="card-head"><div><h2>2. Known-good macro memory replay</h2><p>Replays the exact 51-byte global macro image exported from Lingbao's own IndexedDB: <strong>bhop</strong> + <strong>autoclick</strong>. This uses the corrected <code>00 00 15 12</code> header.</p></div></div>
+        <label class="danger-check"><input id="macroAck" type="checkbox" /> I understand this rewrites global macro memory to the exact two-macro image from my Lingbao DB export.</label>
+        <button id="replayMacros" class="button secondary" style="margin-top:14px">Replay known-good macro image</button>
+        <div class="inline-note">The validator snapshots the live matrix first. A pass requires all 33 matrix bytes to remain unchanged. If they differ, it attempts immediate restoration and stops.</div>
+      </article>
+
+      <article class="card span-2">
+        <div class="card-head"><div><h2>3. Existing macro binding test</h2><p>Only enabled after stage 2 passes. Temporarily binds physical Back to existing macro index 0 (<strong>bhop</strong>) with Lingbao's saved playback mode 3: <code>70 00 03</code>.</p></div></div>
+        <div class="save-actions">
+          <button id="bindExisting" class="button secondary" disabled>Bind Back → bhop</button>
+          <button id="restoreBinding" class="button secondary" disabled>Restore original Back mapping</button>
+        </div>
+        <label class="macro-capture-label" style="margin-top:14px">Behavior test field<input id="capture" class="text-input" placeholder="After arming: press physical Back; expected output: one Space" /></label>
+        <div class="inline-note">This stage does not modify macro memory again; it only changes the Back button's 3-byte descriptor via command 0x09 and verifies it through 0x08.</div>
       </article>
 
       <article class="card span-2">
